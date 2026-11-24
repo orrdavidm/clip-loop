@@ -40,6 +40,15 @@
     cursor:pointer; outline:7px solid transparent; padding:0;
   }
   #back:focus { outline-color:var(--focus); }
+  #fs {
+    position:absolute; top:24px; right:24px; width:96px; height:96px; border-radius:50%;
+    border:none; background:rgba(255,255,255,.88); color:#111; cursor:pointer;
+    outline:7px solid transparent; padding:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #fs:focus { outline-color:var(--focus); }
+  #fs[hidden] { display:none; }
+  #fs svg { width:52px; height:52px; }
   #msg { padding:40px; font-size:22px; }
 </style>
 </head>
@@ -50,6 +59,7 @@
     <div id="player"></div>
     <div id="shield"></div>
     <button id="back" aria-label="Back">←</button>
+    <button id="fs" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
   </div>
 
   <script src="clips.js"></script>
@@ -60,6 +70,22 @@
     const wrap = document.getElementById('player-wrap');
     const backBtn = document.getElementById('back');
     const shield = document.getElementById('shield');
+    const fsBtn = document.getElementById('fs');
+
+    // ---- Full screen (whole page, so the grid stays full screen too) ----
+    const root = document.documentElement;
+    const fsOn = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+    const canFs = !!(root.requestFullscreen || root.webkitRequestFullscreen);
+    function enterFs() {
+      if (!canFs || fsOn()) return;
+      try { const p = (root.requestFullscreen || root.webkitRequestFullscreen).call(root); p?.catch?.(() => {}); } catch {}
+    }
+    function exitFs() {
+      if (!fsOn()) return;
+      try { const p = (document.exitFullscreen || document.webkitExitFullscreen).call(document); p?.catch?.(() => {}); } catch {}
+    }
+    if (!canFs) fsBtn.hidden = true;
+    fsBtn.addEventListener('click', () => fsOn() ? exitFs() : enterFs());
 
     let player = null, ready = false, pending = null;
     let current = null, timer = null, lastCard = null;
@@ -126,6 +152,7 @@
 
     function play(c, card) {
       lastCard = card;
+      enterFs();  // tap on a clip counts as the user gesture full screen needs
       if (!ready) { pending = [c, card]; return; }
       current = c;
       wrap.classList.add('on');
@@ -165,7 +192,8 @@
       if (current) {
         if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); stop(); }
         else if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
-          e.preventDefault(); backBtn.focus();
+          e.preventDefault();
+          (e.key === 'ArrowRight' && !fsBtn.hidden ? fsBtn : backBtn).focus();
         }
         return;
       }
