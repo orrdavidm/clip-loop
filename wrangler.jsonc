@@ -1,6 +1,12 @@
 {
   "name": "clip-loop",
+  "main": "src/worker.js",
   "compatibility_date": "2026-11-01",
-  "assets": { "directory": "./public" },
+  // Let the Worker import the two pages as text
+  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": true }],
+  // Clip list storage (key "clips"). Fill in the namespace id after it's created.
+  "kv_namespaces": [{ "binding": "CLIPS", "id": "REPLACE_WITH_KV_ID" }],
+  // Audience tag of the Cloudflare Access app protecting /admin
+  "vars": { "ACCESS_AUD": "REPLACE_WITH_ACCESS_AUD" },
   "routes": [{ "pattern": "clip-loop.wuorr.com", "custom_domain": true }]
 }

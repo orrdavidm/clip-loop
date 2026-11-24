@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clip Loop · Parents</title>
+<style>
+  :root {
+    --bg:#f5f6f8; --panel:#fff; --field:#fff; --text:#1b1f24; --muted:#66707c; --line:#dde1e6;
+    --accent:#1f6feb; --danger:#c62828; --ok:#2e7d32;
+  }
+  @media (prefers-color-scheme:dark) {
+    :root {
+      --bg:#10151f; --panel:#1c2433; --field:#141a26; --text:#e8ecf1; --muted:#97a3b3; --line:#2c3647;
+      --accent:#5b9dff; --danger:#ff7070; --ok:#5bd17a;
+    }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 system-ui,-apple-system,sans-serif; }
+  header {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    max-width:960px; margin:0 auto; padding:16px;
+  }
+  h1 { font-size:22px; margin:0; }
+  main { max-width:960px; margin:0 auto; padding:0 16px 48px; display:grid; gap:16px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  h2 { font-size:17px; margin:0 0 12px; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  label { display:block; font-size:13px; color:var(--muted); margin-bottom:4px; }
+  input[type=text] {
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;
+    background:var(--field); color:var(--text); font:inherit;
+  }
+  input[type=text]:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+  .grid { display:grid; gap:12px; grid-template-columns:2fr 1fr 1fr; margin-top:12px; }
+  .btn {
+    padding:9px 14px; border-radius:10px; border:1px solid var(--line); background:var(--panel);
+    color:var(--text); font:inherit; cursor:pointer; text-decoration:none; white-space:nowrap;
+  }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.danger { color:var(--danger); }
+  .btn:disabled { opacity:.45; cursor:default; }
+  .preview { aspect-ratio:16/9; background:#000; border-radius:10px; overflow:hidden; margin-top:12px; }
+  .preview[hidden] { display:none; }
+  .preview > div, .preview iframe { width:100%; height:100%; display:block; }
+  .timefield { display:flex; gap:6px; }
+  .timefield input { flex:1; min-width:0; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .hint { font-size:13px; color:var(--muted); margin-top:6px; min-height:1em; }
+  .hint.err { color:var(--danger); }
+  #status { font-size:14px; font-weight:400; color:var(--muted); }
+  #status.ok { color:var(--ok); }
+  #status.err { color:var(--danger); }
+  ul { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+  li {
+    display:grid; grid-template-columns:128px 1fr auto; gap:12px; align-items:center;
+    padding:8px; border:1px solid var(--line); border-radius:12px;
+  }
+  li.editing { border-color:var(--accent); }
+  li img { width:128px; aspect-ratio:16/9; object-fit:cover; border-radius:8px; background:#000; display:block; }
+  li .t { font-weight:600; overflow-wrap:anywhere; }
+  li .r { font-size:14px; color:var(--muted); }
+  li .b { display:flex; gap:6px; }
+  li .b .btn { padding:6px 10px; }
+  .empty { color:var(--muted); }
+  @media (max-width:640px) {
+    .grid { grid-template-columns:1fr 1fr; }
+    .grid > :first-child { grid-column:1 / -1; }
+    li { grid-template-columns:96px 1fr; }
+    li img { width:96px; }
+    li .b { grid-column:1 / -1; justify-content:flex-end; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Clip Loop · Parents</h1>
+  <a class="btn" href="/" target="_blank" rel="noopener">Open player ↗</a>
+</header>
+
+<main>
+  <section class="panel" id="editor">
+    <h2 id="editor-title">Add a clip</h2>
+    <label for="url">YouTube link</label>
+    <input type="text" id="url" placeholder="Paste a youtube.com or youtu.be link" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="hint" id="url-hint"></div>
+
+    <div class="preview" id="preview-box" hidden><div id="preview"></div></div>
+
+    <div class="grid">
+      <div>
+        <label for="title">Label</label>
+        <input type="text" id="title" maxlength="100">
+      </div>
+      <div>
+        <label for="start">Start</label>
+        <div class="timefield">
+          <input type="text" id="start" placeholder="0:00" inputmode="decimal">
+          <button class="btn" id="start-now" type="button" title="Use the preview's current time">Now</button>
+        </div>
+      </div>
+      <div>
+        <label for="end">End</label>
+        <div class="timefield">
+          <input type="text" id="end" placeholder="end" inputmode="decimal">
+          <button class="btn" id="end-now" type="button" title="Use the preview's current time">Now</button>
+        </div>
+      </div>
+    </div>
+    <div class="hint">Times are m:ss. Leave End blank to play to the end of the video. Pause the preview where you want and tap Now to grab that time.</div>
+    <div class="hint err" id="form-err"></div>
+
+    <div class="actions">
+      <button class="btn primary" id="save-clip" type="button" disabled>Add clip</button>
+      <button class="btn" id="test-loop" type="button" disabled>Preview loop</button>
+      <button class="btn" id="cancel" type="button" hidden>Cancel</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Clips on the player <span id="status"></span></h2>
+    <ul id="list"></ul>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const urlIn = $('url'), titleIn = $('title'), startIn = $('start'), endIn = $('end');
+  const urlHint = $('url-hint'), formErr = $('form-err'), statusEl = $('status');
+  const saveBtn = $('save-clip'), testBtn = $('test-loop'), cancelBtn = $('cancel');
+  const list = $('list'), previewBox = $('preview-box');
+
+  let clips = [], editing = -1, videoId = null;
+  let player = null, playerReady = false, pendingPreview = null, loopTimer = null, saveTimer = null;
+
+  // ---- time + URL helpers ----
+  const fmt = s => {
+    s = Math.max(0, Math.round(s));
+    const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = String(s % 60).padStart(2, '0');
+    return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}`;
+  };
+  function parseTime(v) {
+    v = String(v).trim();
+    if (!v) return null;
+    if (/^\d+(\.\d+)?$/.test(v)) return +v;
+    if (!/^\d+(:\d{1,2}){1,2}(\.\d+)?$/.test(v)) return NaN;
+    return v.split(':').reduce((a, p) => a * 60 + (+p), 0);
+  }
+  function parseUrl(v) {
+    v = v.trim();
+    if (/^[\w-]{11}$/.test(v)) return { id: v, t: null };
+    let u;
+    try { u = new URL(v.includes('://') ? v : 'https://' + v); } catch { return null; }
+    const host = u.hostname.replace(/^(www|m)\./, '');
+    let id = null;
+    if (host === 'youtu.be') id = u.pathname.slice(1).split('/')[0];
+    else if (host.endsWith('youtube.com') || host === 'youtube-nocookie.com') {
+      id = u.searchParams.get('v');
+      if (!id) { const m = u.pathname.match(/^\/(shorts|embed|live|v)\/([\w-]{11})/); if (m) id = m[2]; }
+    }
+    if (!id || !/^[\w-]{11}$/.test(id)) return null;
+    let t = null;
+    const tp = u.searchParams.get('t') || u.searchParams.get('start');
+    if (tp) {
+      const m = tp.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/);
+      if (m) t = (+(m[1] || 0)) * 3600 + (+(m[2] || 0)) * 60 + (+(m[3] || 0));
+    }
+    return { id, t: t || null };
+  }
+
+  // ---- server ----
+  async function api(path, opts = {}) {
+    const r = await fetch('/admin/api/' + path, { credentials: 'same-origin', ...opts });
+    const text = await r.text();
+    if (!r.ok) {
+      let msg = text;
+      try { msg = JSON.parse(text).error || text; } catch {}
+      throw new Error(msg || `HTTP ${r.status}`);
+    }
+    return JSON.parse(text);
+  }
+  function setStatus(text, cls = '') { statusEl.textContent = text; statusEl.className = cls; }
+  async function load() {
+    setStatus('Loading…');
+    try { clips = await api('clips'); render(); setStatus(''); }
+    catch (e) { setStatus('Couldn’t load the list — reload to sign in again. (' + e.message + ')', 'err'); }
+  }
+  function scheduleSave() {
+    setStatus('Saving…');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, 400);
+  }
+  async function save() {
+    try {
+      await api('clips', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(clips) });
+      setStatus('Saved ✓', 'ok');
+    } catch (e) {
+      setStatus('Save failed — reload the page to sign in again, then retry. (' + e.message + ')', 'err');
+    }
+  }
+
+  // ---- list ----
+  function render() {
+    list.replaceChildren();
+    if (!clips.length) {
+      const li = document.createElement('li');
+      li.className = 'empty'; li.style.display = 'block';
+      li.textContent = 'No clips yet. Add one above.';
+      list.append(li);
+      return;
+    }
+    clips.forEach((c, i) => {
+      const li = document.createElement('li');
+      if (i === editing) li.className = 'editing';
+      const img = document.createElement('img');
+      img.alt = ''; img.loading = 'lazy';
+      img.src = `https://i.ytimg.com/vi/${c.videoId}/mqdefault.jpg`;
+      const info = document.createElement('div');
+      const t = document.createElement('div'); t.className = 't'; t.textContent = c.title || '(no label)';
+      const r = document.createElement('div'); r.className = 'r';
+      r.textContent = `${fmt(c.start || 0)} – ${c.end != null ? fmt(c.end) : 'end'}`;
+      info.append(t, r);
+      const b = document.createElement('div'); b.className = 'b';
+      const mk = (txt, label, fn, cls = '') => {
+        const x = document.createElement('button');
+        x.type = 'button'; x.className = 'btn ' + cls; x.textContent = txt;
+        x.title = label; x.setAttribute('aria-label', label);
+        x.addEventListener('click', fn);
+        b.append(x);
+        return x;
+      };
+      mk('Edit', 'Edit', () => startEdit(i));
+      mk('↑', 'Move up', () => move(i, -1)).disabled = i === 0;
+      mk('↓', 'Move down', () => move(i, 1)).disabled = i === clips.length - 1;
+      mk('Delete', 'Delete', () => {
+        if (!confirm(`Remove “${c.title || c.videoId}” from the player?`)) return;
+        clips.splice(i, 1);
+        if (editing === i) resetForm(); else if (editing > i) editing--;
+        render(); scheduleSave();
+      }, 'danger');
+      li.append(img, info, b);
+      list.append(li);
+    });
+  }
+  function move(i, d) {
+    const j = i + d;
+    [clips[i], clips[j]] = [clips[j], clips[i]];
+    if (editing === i) editing = j; else if (editing === j) editing = i;
+    render(); scheduleSave();
+  }
+
+  // ---- preview player ----
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
+  window.onYouTubeIframeAPIReady = () => {
+    player = new YT.Player('preview', {
+      width: '100%', height: '100%',
+      playerVars: { playsinline: 1, rel: 0, modestbranding: 1 },
+      events: {
+        onReady: () => {
+          playerReady = true;
+          if (pendingPreview) { const [id, s] = pendingPreview; pendingPreview = null; showPreview(id, s); }
+        },
+        onError: e => {
+          urlHint.className = 'hint err';
+          urlHint.textContent = (e.data === 101 || e.data === 150)
+            ? '⚠ The owner doesn’t allow this video to be embedded, so the player can’t show it. Try another upload.'
+            : '⚠ YouTube couldn’t play this video.';
+        }
+      }
+    });
+  };
+  function showPreview(id, start) {
+    previewBox.hidden = false;
+    if (!playerReady) { pendingPreview = [id, start]; return; }
+    player.cueVideoById({ videoId: id, startSeconds: start || 0 });
+  }
+  function stopLoop() {
+    clearInterval(loopTimer); loopTimer = null;
+    testBtn.textContent = 'Preview loop';
+  }
+
+  // ---- form ----
+  function updateButtons() {
+    saveBtn.disabled = !videoId;
+    testBtn.disabled = !videoId;
+  }
+  function onUrl() {
+    const p = parseUrl(urlIn.value);
+    urlHint.className = 'hint';
+    if (!p) {
+      videoId = null;
+      urlHint.textContent = urlIn.value.trim() ? 'That doesn’t look like a YouTube link.' : '';
+      updateButtons();
+      return;
+    }
+    if (p.id === videoId) return;
+    videoId = p.id;
+    urlHint.textContent = '';
+    stopLoop();
+    if (p.t != null && !startIn.value) startIn.value = fmt(p.t);
+    const s = parseTime(startIn.value);
+    showPreview(p.id, Number.isFinite(s) ? s : 0);
+    if (!titleIn.value) fetchTitle(p.id);
+    updateButtons();
+  }
+  async function fetchTitle(id) {
+    try {
+      const r = await api('title?id=' + encodeURIComponent(id));
+      if (videoId === id && !titleIn.value) titleIn.value = r.title || '';
+    } catch {}
+  }
+  function readForm() {
+    const s = parseTime(startIn.value), e = parseTime(endIn.value);
+    if (Number.isNaN(s) || Number.isNaN(e)) return { err: 'Times should look like 1:23 (or plain seconds).' };
+    if (e != null && e <= (s || 0)) return { err: 'End has to be after start.' };
+    return { clip: { title: titleIn.value.trim() || 'Untitled', videoId, start: s || 0, end: e } };
+  }
+  function startEdit(i) {
+    const c = clips[i];
+    editing = i;
+    titleIn.value = c.title || '';
+    startIn.value = c.start ? fmt(c.start) : '';
+    endIn.value = c.end != null ? fmt(c.end) : '';
+    urlIn.value = 'https://youtu.be/' + c.videoId;
+    videoId = null;
+    onUrl();
+    formErr.textContent = '';
+    $('editor-title').textContent = 'Edit clip';
+    saveBtn.textContent = 'Save changes';
+    cancelBtn.hidden = false;
+    render();
+    $('editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function resetForm() {
+    editing = -1; videoId = null;
+    urlIn.value = titleIn.value = startIn.value = endIn.value = '';
+    urlHint.textContent = ''; formErr.textContent = '';
+    stopLoop();
+    if (player && playerReady) player.stopVideo();
+    previewBox.hidden = true;
+    $('editor-title').textContent = 'Add a clip';
+    saveBtn.textContent = 'Add clip';
+    cancelBtn.hidden = true;
+    updateButtons();
+    render();
+  }
+
+  urlIn.addEventListener('input', onUrl);
+  urlIn.addEventListener('paste', () => setTimeout(onUrl, 0));
+  saveBtn.addEventListener('click', () => {
+    const r = readForm();
+    if (r.err) { formErr.textContent = r.err; return; }
+    if (editing >= 0) clips[editing] = r.clip; else clips.push(r.clip);
+    resetForm();
+    scheduleSave();
+  });
+  cancelBtn.addEventListener('click', resetForm);
+
+  const grab = input => () => {
+    if (!player || !playerReady || !videoId) return;
+    input.value = fmt(player.getCurrentTime());
+    formErr.textContent = '';
+  };
+  $('start-now').addEventListener('click', grab(startIn));
+  $('end-now').addEventListener('click', grab(endIn));
+
+  testBtn.addEventListener('click', () => {
+    if (!playerReady) return;
+    if (loopTimer) { stopLoop(); player.pauseVideo(); return; }
+    const r = readForm();
+    if (r.err) { formErr.textContent = r.err; return; }
+    formErr.textContent = '';
+    const c = r.clip;
+    player.loadVideoById({ videoId: c.videoId, startSeconds: c.start });
+    testBtn.textContent = 'Stop preview';
+    loopTimer = setInterval(() => {
+      if (player.getPlayerState() !== YT.PlayerState.PLAYING) return;
+      const end = c.end ?? player.getDuration();
+      if (end && player.getCurrentTime() >= end - 0.15) player.seekTo(c.start, true);
+    }, 200);
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>
