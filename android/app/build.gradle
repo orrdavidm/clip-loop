@@ -1,0 +1,47 @@
+plugins {
+    id 'com.android.application'
+}
+
+// CI sets GITHUB_RUN_NUMBER so each build gets a higher versionCode and installs as an update.
+def runNumber = Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
+
+android {
+    namespace 'com.wuorr.cliploop'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.wuorr.cliploop'
+        minSdk 21
+        targetSdk 34
+        versionCode runNumber
+        versionName "1.0.${runNumber}"
+    }
+
+    signingConfigs {
+        release {
+            // A fixed key so every build can be installed over the previous one.
+            // See android/README.md for why it lives in the repo.
+            storeFile file('../cliploop-tv.keystore')
+            storeType 'pkcs12'
+            storePassword 'cliploop'
+            keyAlias 'cliploop'
+            keyPassword 'cliploop'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    lint {
+        abortOnError false
+    }
+}

@@ -1,0 +1,43 @@
+name: Build Android TV app
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-tv.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+
+      - name: Build signed release APK
+        working-directory: android
+        run: gradle --no-daemon assembleRelease
+
+      - name: Publish to the tv-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk clip-loop-tv.apk
+          if ! gh release view tv-latest >/dev/null 2>&1; then
+            gh release create tv-latest --title "Clip Loop for Android TV" \
+              --notes "Latest build of the Android TV app. On the TV, open Downloader and enter clip-loop.wuorr.com/tv"
+          fi
+          gh release upload tv-latest clip-loop-tv.apk --clobber
+          echo "Built version 1.0.${GITHUB_RUN_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
