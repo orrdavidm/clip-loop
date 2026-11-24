@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>Clip Loop</title>
+<style>
+  :root { --bg:#10151f; --card:#1c2433; --focus:#ffcc33; --text:#fff; }
+  * { box-sizing:border-box; }
+  html, body {
+    margin:0; height:100%; background:var(--bg); color:var(--text);
+    font-family:system-ui,-apple-system,sans-serif;
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #grid {
+    display:grid; gap:28px; padding:36px;
+    grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  }
+  .clip {
+    all:unset; cursor:pointer; background:var(--card); border-radius:26px;
+    overflow:hidden; outline:7px solid transparent;
+    transition:transform .15s, outline-color .15s;
+  }
+  .clip:focus, .clip:hover { outline-color:var(--focus); transform:scale(1.04); }
+  .clip img { display:block; width:100%; aspect-ratio:16/9; object-fit:cover; background:#000; }
+  .clip span { display:block; padding:16px 18px; font-size:26px; font-weight:700; text-align:center; }
+  .clip.broken { opacity:.35; }
+  #player-wrap { position:fixed; inset:0; background:#000; display:none; }
+  #player-wrap.on { display:block; }
+  #player { position:absolute; inset:0; width:100%; height:100%; }
+  /* Transparent layer over the video so taps never reach YouTube's UI/links */
+  #shield { position:absolute; inset:0; }
+  #back {
+    position:absolute; top:24px; left:24px; width:96px; height:96px; border-radius:50%;
+    border:none; background:rgba(255,255,255,.88); color:#111; font-size:52px; line-height:96px;
+    cursor:pointer; outline:7px solid transparent; padding:0;
+  }
+  #back:focus { outline-color:var(--focus); }
+  #msg { padding:40px; font-size:22px; }
+</style>
+</head>
+<body>
+  <div id="grid"></div>
+
+  <div id="player-wrap">
+    <div id="player"></div>
+    <div id="shield"></div>
+    <button id="back" aria-label="Back">←</button>
+  </div>
+
+  <script src="clips.js"></script>
+  <script>
+  (() => {
+    const POLL_MS = 200;
+    const grid = document.getElementById('grid');
+    const wrap = document.getElementById('player-wrap');
+    const backBtn = document.getElementById('back');
+    const shield = document.getElementById('shield');
+
+    let player = null, ready = false, pending = null;
+    let current = null, timer = null, lastCard = null;
+
+    // "1:23", "1:02:03", or plain seconds -> seconds
+    const toSec = t => typeof t === 'number' ? t
+      : String(t).split(':').reduce((a, p) => a * 60 + parseFloat(p), 0);
+
+    const clips = (window.CLIPS || []).map(c => ({
+      ...c, start: toSec(c.start ?? 0), end: toSec(c.end)
+    }));
+
+    if (!clips.length) {
+      grid.innerHTML = '<p id="msg">No clips yet — add some to clips.js.</p>';
+    }
+
+    clips.forEach(c => {
+      const b = document.createElement('button');
+      b.className = 'clip';
+      const img = document.createElement('img');
+      img.alt = '';
+      img.src = c.thumb || `https://i.ytimg.com/vi/${encodeURIComponent(c.videoId)}/hqdefault.jpg`;
+      const label = document.createElement('span');
+      label.textContent = c.title || '';
+      b.append(img, label);
+      b.addEventListener('click', () => play(c, b));
+      c.card = b;
+      grid.appendChild(b);
+    });
+    grid.firstElementChild?.focus();
+
+    // ---- YouTube IFrame API ----
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+
+    window.onYouTubeIframeAPIReady = () => {
+      player = new YT.Player('player', {
+        width: '100%', height: '100%',
+        playerVars: {
+          controls: 0, disablekb: 1, fs: 0, rel: 0,
+          playsinline: 1, iv_load_policy: 3, modestbranding: 1
+        },
+        events: {
+          onReady: () => {
+            ready = true;
+            if (pending) { const [c, b] = pending; pending = null; play(c, b); }
+          },
+          onStateChange: e => {
+            // Video ended before the clip's end time: loop anyway
+            if (e.data === YT.PlayerState.ENDED && current) {
+              player.seekTo(current.start, true);
+              player.playVideo();
+            }
+          },
+          onError: () => {
+            // 101/150 = owner disabled embedding; 100 = removed/private
+            if (current?.card) current.card.classList.add('broken');
+            stop();
+          }
+        }
+      });
+    };
+
+    function play(c, card) {
+      lastCard = card;
+      if (!ready) { pending = [c, card]; return; }
+      current = c;
+      wrap.classList.add('on');
+      history.pushState({ playing: true }, '');
+      player.loadVideoById({ videoId: c.videoId, startSeconds: c.start });
+      clearInterval(timer);
+      timer = setInterval(check, POLL_MS);
+      backBtn.focus();
+    }
+
+    function check() {
+      if (!current || !player || player.getPlayerState() !== YT.PlayerState.PLAYING) return;
+      const end = current.end || player.getDuration();
+      if (player.getCurrentTime() >= end - 0.15) player.seekTo(current.start, true);
+    }
+
+    function stop(fromPopstate) {
+      clearInterval(timer);
+      current = null;
+      if (player && ready) player.stopVideo();
+      wrap.classList.remove('on');
+      if (!fromPopstate && history.state?.playing) history.back();
+      (lastCard || grid.firstElementChild)?.focus();
+    }
+
+    backBtn.addEventListener('click', () => stop());
+    // TV remote "Back" and iPad swipe-back go through browser history
+    window.addEventListener('popstate', () => { if (current) stop(true); });
+
+    // Tapping the video: resume if paused (e.g. iOS blocked autoplay)
+    shield.addEventListener('click', () => {
+      if (current && player.getPlayerState() !== YT.PlayerState.PLAYING) player.playVideo();
+    });
+
+    // ---- D-pad / arrow-key navigation for the TV remote ----
+    document.addEventListener('keydown', e => {
+      if (current) {
+        if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); stop(); }
+        else if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+          e.preventDefault(); backBtn.focus();
+        }
+        return;
+      }
+      const cards = [...grid.children];
+      let i = cards.indexOf(document.activeElement);
+      if (i < 0) { cards[0]?.focus(); return; }
+      const top = cards[0].offsetTop;
+      const cols = Math.max(1, cards.filter(el => el.offsetTop === top).length);
+      const move = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }[e.key];
+      if (move !== undefined) {
+        e.preventDefault();
+        const j = Math.min(cards.length - 1, Math.max(0, i + move));
+        cards[j].focus();
+        cards[j].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    });
+  })();
+  </script>
+</body>
+</html>
