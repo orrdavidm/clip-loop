@@ -7,5 +7,5 @@
 //   thumb    – optional custom image URL (defaults to YouTube's thumbnail)
 //
 window.CLIPS = [
-  { title: "Clip 1", videoId: "nEbcZtoZNR8" },  // whole video
+  { title: "Shaun the Sheep - Pizza", videoId: "nEbcZtoZNR8" },  // whole video
 ];
