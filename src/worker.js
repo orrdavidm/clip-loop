@@ -1,5 +1,6 @@
 // Clip Loop Worker
 //   /            player page (public)
+//   /tv          redirect to the latest Android TV APK (for Downloader)
 //   /clips.js    current clip list as `window.CLIPS = [...]` (public, read from KV)
 //   /admin       parent page (behind Cloudflare Access; JWT verified here too)
 //   /admin/api/clips   GET / PUT the clip list
@@ -10,6 +11,7 @@ import ADMIN from "./admin.html";
 
 const TEAM = "https://jolly-snowflake-6744.cloudflareaccess.com";
 const ID_RE = /^[A-Za-z0-9_-]{11}$/;
+const TV_APK = "https://github.com/orrdavidm/clip-loop/releases/download/tv-latest/clip-loop-tv.apk";
 const SEED = [{ title: "Shaun the Sheep - Pizza", videoId: "nEbcZtoZNR8", start: 0, end: null }];
 
 const html = body => new Response(body, {
@@ -80,6 +82,9 @@ export default {
     const path = url.pathname;
 
     if (path === "/" || path === "/index.html") return html(PLAYER);
+
+    // Short link for installing the Android TV app with Downloader
+    if (path === "/tv" || path === "/tv.apk") return Response.redirect(TV_APK, 302);
 
     if (path === "/clips.js") {
       const clips = await getClips(env);
